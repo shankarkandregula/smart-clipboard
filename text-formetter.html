@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Clipboard - Text Reformatter</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #8b5cf6;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg-light: #f9fafb;
+            --bg-card: #ffffff;
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --border: #e5e7eb;
+            --shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        html.dark-mode {
+            --bg-light: #0f172a;
+            --bg-card: #1e293b;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --border: #334155;
+            --shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg-light);
+            color: var(--text-primary);
+            transition: background-color 0.3s ease, color 0.3s ease;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 20px 0;
+            position: relative;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin: 0;
+        }
+
+        .header-description {
+            color: var(--text-secondary);
+            font-size: 1rem;
+            max-width: 600px;
+            margin: 15px auto 0;
+        }
+
+        .dark-mode-toggle {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            font-size: 1.2rem;
+        }
+
+        .dark-mode-toggle:hover {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+            transform: scale(1.1);
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .textarea-container {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .textarea-label {
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        textarea {
+            flex: 1;
+            min-height: 400px;
+            padding: 16px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--bg-card);
+            color: var(--text-primary);
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 14px;
+            resize: vertical;
+            transition: all 0.3s ease;
+            line-height: 1.6;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        textarea::placeholder {
+            color: var(--text-secondary);
+        }
+
+        .tools-section {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .tool-category {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: var(--shadow);
+            transition: all 0.3s ease;
+        }
+
+        .tool-category:hover {
+            box-shadow: var(--shadow-lg);
+            border-color: var(--primary);
+        }
+
+        .tool-category-title {
+            font-weight: 700;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--primary);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+
+        .tool-category-title::before {
+            content: '';
+            display: inline-block;
+            width: 4px;
+            height: 4px;
+            background: var(--primary);
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .button-group {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 8px;
+        }
+
+        .button-group.grid-2 {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        button {
+            padding: 10px 16px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-card);
+            color: var(--text-primary);
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        button:hover:not(:disabled) {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        button:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .button-primary {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .button-secondary {
+            background: var(--secondary);
+            color: white;
+            border-color: var(--secondary);
+        }
+
+        .button-success {
+            background: var(--success);
+            color: white;
+            border-color: var(--success);
+        }
+
+        .button-danger {
+            background: var(--danger);
+            color: white;
+            border-color: var(--danger);
+        }
+
+        .button-warning {
+            background: var(--warning);
+            color: white;
+            border-color: var(--warning);
+        }
+
+        .stats-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: var(--shadow);
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--primary);
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        .modal-content {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: var(--shadow-lg);
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 15px;
+            color: var(--text-primary);
+        }
+
+        .modal-input {
+            width: 100%;
+            padding: 12px;
+            margin: 15px 0;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-light);
+            color: var(--text-primary);
+            font-size: 1rem;
+        }
+
+        .modal-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .checkbox-group {
+            margin: 15px 0;
+            display: flex;
+            align-items: center;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            margin-right: 10px;
+            cursor: pointer;
+        }
+
+        .modal-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--success);
+            color: white;
+            padding: 16px 24px;
+            border-radius: 8px;
+            box-shadow: var(--shadow-lg);
+            z-index: 2000;
+            animation: slideInRight 0.3s ease;
+            max-width: 300px;
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .toast.hide {
+            animation: slideOutRight 0.3s ease forwards;
+        }
+
+        @keyframes slideOutRight {
+            to {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+        }
+
+        .toast.error {
+            background: var(--danger);
+        }
+
+        .toast.warning {
+            background: var(--warning);
+        }
+
+        .toast.info {
+            background: var(--primary);
+        }
+
+        @media (max-width: 768px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+
+            h1 {
+                font-size: 1.8rem;
+            }
+
+            textarea {
+                min-height: 300px;
+            }
+
+            .tools-section {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-section {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .button-group.grid-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .utility-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+
+        .utility-buttons button {
+            padding: 12px 16px;
+        }
+
+        .undo-redo-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .input-with-button {
+            display: flex;
+            gap: 10px;
+            margin: 10px 0;
+        }
+
+        .input-with-button input {
+            flex: 1;
+        }
+
+        .input-with-button button {
+            flex: 0.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-top">
+                <div>
+                    <h1>Smart Clipboard</h1>
+                    <p class="header-description">Powerful text formatting and manipulation tools</p>
+                </div>
+                <button class="dark-mode-toggle" id="darkModeToggle" title="Toggle Dark Mode">🌙</button>
+            </div>
+        </header>
+
+        <div class="main-grid">
+            <div class="textarea-container">
+                <label class="textarea-label">Input Text</label>
+                <textarea id="inputText" placeholder="Paste or type your text here..."></textarea>
+            </div>
+
+            <div class="textarea-container">
+                <label class="textarea-label">Output Text</label>
+                <textarea id="outputText" readonly placeholder="Formatted output will appear here..."></textarea>
+            </div>
+
+            <!-- Utility Buttons -->
+            <div style="grid-column: 1 / -1;">
+                <div class="utility-buttons">
+                    <button class="button-primary" id="copyBtn" title="Copy to clipboard (Ctrl+C)">📋 Copy</button>
+                    <button class="button-primary" id="downloadBtn" title="Download as TXT">⬇️ Download</button>
+                    <button class="button-secondary" id="swapBtn" title="Swap input and output">🔄 Swap</button>
+                    <button class="button-warning" id="clearInputBtn" title="Clear input (Ctrl+L)">✕ Clear Input</button>
+                    <button class="button-warning" id="clearOutputBtn" title="Clear output">✕ Clear Output</button>
+                    <button id="undoBtn" title="Undo (Ctrl+Z)" disabled>↶ Undo</button>
+                    <button id="redoBtn" title="Redo (Ctrl+Y)" disabled>↷ Redo</button>
+                </div>
+            </div>
+
+            <!-- Whitespace Tools -->
+            <div class="tool-category">
+                <div class="tool-category-title">Whitespace</div>
+                <div class="button-group">
+                    <button id="removeExtraSpaces">Remove Extra Spaces</button>
+                    <button id="removeTrailingSpaces">Remove Trailing Spaces</button>
+                    <button id="removeLeadingSpaces">Remove Leading Spaces</button>
+                    <button id="removeBlankLines">Remove Blank Lines</button>
+                    <button id="trimLines">Trim Every Line</button>
+                </div>
+            </div>
+
+            <!-- PDF Cleanup Tools -->
+            <div class="tool-category">
+                <div class="tool-category-title">PDF Cleanup</div>
+                <div class="button-group">
+                    <button id="fixPdfLineBreaks">Fix PDF Line Breaks</button>
+                    <button id="joinWrappedSentences">Join Wrapped Sentences</button>
+                </div>
+            </div>
+
+            <!-- Quote Tools -->
+            <div class="tool-category">
+                <div class="tool-category-title">Quotes</div>
+                <div class="button-group">
+                    <button id="convertSmartQuotes">Convert Smart Quotes</button>
+                    <button id="convertSmartApostrophes">Convert Smart Apostrophes</button>
+                </div>
+            </div>
+
+            <!-- Bullet Tools -->
+            <div class="tool-category">
+                <div class="tool-category-title">Bullets</div>
+                <div class="button-group">
+                    <button id="convertToDotBullets">• Dot Bullets</button>
+                    <button id="convertToAsteriskBullets">* Asterisk Bullets</button>
+                    <button id="convertToDashBullets">- Dash Bullets</button>
+                </div>
+            </div>
+
+            <!-- Case Conversion -->
+            <div class="tool-category">
+                <div class="tool-category-title">Case Conversion</div>
+                <div class="button-group">
+                    <button id="toUppercase">UPPERCASE</button>
+                    <button id="toLowercase">lowercase</button>
+                    <button id="toSentenceCase">Sentence case</button>
+                    <button id="toTitleCase">Title Case</button>
+                    <button id="toggleCase">tOGGLE cASE</button>
+                </div>
+            </div>
+
+            <!-- Line Operations -->
+            <div class="tool-category">
+                <div class="tool-category-title">Line Operations</div>
+                <div class="button-group">
+                    <button id="sortLinesAZ">Sort A-Z</button>
+                    <button id="sortLinesZA">Sort Z-A</button>
+                    <button id="reverseLines">Reverse Lines</button>
+                    <button id="removeDuplicateLines">Remove Duplicates</button>
+                    <button id="removeEmptyLines">Remove Empty Lines</button>
+                    <button id="numberLines">Number Lines</button>
+                </div>
+            </div>
+
+            <!-- Text Cleanup -->
+            <div class="tool-category">
+                <div class="tool-category-title">Text Cleanup</div>
+                <div class="button-group">
+                    <button id="removeMultipleTabs">Remove Multiple Tabs</button>
+                    <button id="replaceTabsWithSpaces">Tabs → Spaces</button>
+                    <button id="replaceMultipleSpaces">Single Spaces</button>
+                    <button id="normalizePunctuation">Normalize Punctuation</button>
+                    <button id="removeRepeatedPunctuation">Remove Repeated Punctuation</button>
+                </div>
+            </div>
+
+            <!-- URL Tools -->
+            <div class="tool-category">
+                <div class="tool-category-title">URL Tools</div>
+                <div class="button-group">
+                    <button id="removeUtmParams">Remove UTM Parameters</button>
+                    <button id="decodeUrls">Decode URLs</button>
+                    <button id="encodeUrls">Encode URLs</button>
+                </div>
+            </div>
+
+            <!-- Find & Replace -->
+            <div class="tool-category">
+                <div class="tool-category-title">Find & Replace</div>
+                <div class="button-group">
+                    <button id="findReplaceBtn">Find & Replace</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics Section -->
+        <div class="stats-section">
+            <div class="stat-item">
+                <div class="stat-value" id="charCount">0</div>
+                <div class="stat-label">Characters</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="charCountNoSpaces">0</div>
+                <div class="stat-label">No Spaces</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="wordCount">0</div>
+                <div class="stat-label">Words</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="lineCount">0</div>
+                <div class="stat-label">Lines</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="paragraphCount">0</div>
+                <div class="stat-label">Paragraphs</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="readingTime">0m</div>
+                <div class="stat-label">Reading Time</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="speakingTime">0m</div>
+                <div class="stat-label">Speaking Time</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Find & Replace Modal -->
+    <div class="modal" id="findReplaceModal">
+        <div class="modal-content">
+            <div class="modal-title">Find & Replace</div>
+            <input type="text" class="modal-input" id="findInput" placeholder="Find..." autofocus>
+            <input type="text" class="modal-input" id="replaceInput" placeholder="Replace with...">
+            <div class="checkbox-group">
+                <input type="checkbox" id="caseSensitiveCheckbox">
+                <label for="caseSensitiveCheckbox">Case Sensitive</label>
+            </div>
+            <div class="modal-buttons">
+                <button class="button-primary" id="replaceOneBtn">Replace</button>
+                <button class="button-primary" id="replaceAllBtn">Replace All</button>
+                <button id="findCancelBtn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State Management
+        const state = {
+            history: [],
+            historyIndex: -1,
+            maxHistory: 50
+        };
+
+        // DOM Elements
+        const inputText = document.getElementById('inputText');
+        const outputText = document.getElementById('outputText');
+        const copyBtn = document.getElementById('copyBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const swapBtn = document.getElementById('swapBtn');
+        const clearInputBtn = document.getElementById('clearInputBtn');
+        const clearOutputBtn = document.getElementById('clearOutputBtn');
+        const undoBtn = document.getElementById('undoBtn');
+        const redoBtn = document.getElementById('redoBtn');
+        const darkModeToggle = document.getElementById('darkModeToggle');
+        const findReplaceModal = document.getElementById('findReplaceModal');
+
+        // Utility Functions
+        function saveHistory() {
+            state.history = state.history.slice(0, state.historyIndex + 1);
+            state.history.push(outputText.value);
+            state.historyIndex++;
+            
+            if (state.history.length > state.maxHistory) {
+                state.history.shift();
+                state.historyIndex--;
+            }
+            
+            updateHistoryButtons();
+        }
+
+        function updateHistoryButtons() {
+            undoBtn.disabled = state.historyIndex <= 0;
+            redoBtn.disabled = state.historyIndex >= state.history.length - 1;
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.classList.add('hide');
+                setTimeout(() => toast.remove(), 300);
+            }, 2000);
+        }
+
+        function updateStats() {
+            const text = inputText.value;
+            const output = outputText.value;
+            
+            document.getElementById('charCount').textContent = text.length;
+            document.getElementById('charCountNoSpaces').textContent = text.replace(/\s/g, '').length;
+            
+            const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+            document.getElementById('wordCount').textContent = words;
+            
+            const lines = text ? text.split('\n').length : 0;
+            document.getElementById('lineCount').textContent = lines;
+            
+            const paragraphs = text.trim() ? text.trim().split(/\n\n+/).length : 0;
+            document.getElementById('paragraphCount').textContent = paragraphs;
+            
+            const readingTime = Math.ceil(words / 200);
+            document.getElementById('readingTime').textContent = readingTime + 'm';
+            
+            const speakingTime = Math.ceil(words / 130);
+            document.getElementById('speakingTime').textContent = speakingTime + 'm';
+        }
+
+        function applyTool(processor) {
+            if (!inputText.value) {
+                showToast('Input is empty', 'warning');
+                return;
+            }
+            
+            try {
+                outputText.value = processor(inputText.value);
+                saveHistory();
+                updateStats();
+                showToast('Formatting complete', 'success');
+            } catch (error) {
+                showToast('Error processing text', 'error');
+                console.error(error);
+            }
+        }
+
+        // Text Processing Tools
+        const tools = {
+            // Whitespace
+            removeExtraSpaces: (text) => text.replace(/[ \t]+/g, ' '),
+            removeTrailingSpaces: (text) => text.split('\n').map(line => line.trimEnd()).join('\n'),
+            removeLeadingSpaces: (text) => text.split('\n').map(line => line.trimStart()).join('\n'),
+            removeBlankLines: (text) => text.split('\n').filter(line => line.trim()).join('\n'),
+            trimLines: (text) => text.split('\n').map(line => line.trim()).join('\n'),
+            
+            // PDF Cleanup
+            fixPdfLineBreaks: (text) => {
+                return text
+                    .replace(/([a-z])-\n([a-z])/g, '$1$2')
+                    .replace(/\n(?=[a-z])/g, ' ')
+                    .replace(/\n\n+/g, '\n\n');
+            },
+            joinWrappedSentences: (text) => {
+                return text
+                    .replace(/([.!?])\n([A-Z])/g, '$1 $2')
+                    .replace(/([a-z])\n(?=[a-z])/g, '$1 ');
+            },
+            
+            // Quotes
+            convertSmartQuotes: (text) => {
+                return text
+                    .replace(/[""]/g, '"')
+                    .replace(/['']/g, "'");
+            },
+            convertSmartApostrophes: (text) => {
+                return text.replace(/[']/g, "'");
+            },
+            
+            // Bullets
+            convertToDotBullets: (text) => {
+                return text
+                    .replace(/^[\s]*([-*]|•|\*)\s+/gm, '• ')
+                    .replace(/^[\s]*(\d+\.\s+)/gm, '• ');
+            },
+            convertToAsteriskBullets: (text) => {
+                return text
+                    .replace(/^[\s]*([-•]|•|\*)\s+/gm, '* ')
+                    .replace(/^[\s]*(\d+\.\s+)/gm, '* ');
+            },
+            convertToDashBullets: (text) => {
+                return text
+                    .replace(/^[\s]*([-*•]|•|\*)\s+/gm, '- ')
+                    .replace(/^[\s]*(\d+\.\s+)/gm, '- ');
+            },
+            
+            // Case Conversion
+            toUppercase: (text) => text.toUpperCase(),
+            toLowercase: (text) => text.toLowerCase(),
+            toSentenceCase: (text) => {
+                return text.replace(/([.!?]\s+|^)(.)/gm, (match, separator, char) => {
+                    return separator + char.toUpperCase();
+                }).replace(/^(.)/, match => match.toUpperCase());
+            },
+            toTitleCase: (text) => {
+                return text.toLowerCase().replace(/\b\w/g, char => char.toUpperCase());
+            },
+            toggleCase: (text) => {
+                return text.replace(/\w/g, char => 
+                    char === char.toUpperCase() ? char.toLowerCase() : char.toUpperCase()
+                );
+            },
+            
+            // Line Operations
+            sortLinesAZ: (text) => {
+                return text.split('\n').sort((a, b) => a.localeCompare(b)).join('\n');
+            },
+            sortLinesZA: (text) => {
+                return text.split('\n').sort((a, b) => b.localeCompare(a)).join('\n');
+            },
+            reverseLines: (text) => {
+                return text.split('\n').reverse().join('\n');
+            },
+            removeDuplicateLines: (text) => {
+                const seen = new Set();
+                return text.split('\n').filter(line => {
+                    if (seen.has(line)) return false;
+                    seen.add(line);
+                    return true;
+                }).join('\n');
+            },
+            removeEmptyLines: (text) => {
+                return text.split('\n').filter(line => line.trim()).join('\n');
+            },
+            numberLines: (text) => {
+                return text.split('\n').map((line, i) => `${i + 1}. ${line}`).join('\n');
+            },
+            
+            // Text Cleanup
+            removeMultipleTabs: (text) => text.replace(/\t+/g, '\t'),
+            replaceTabsWithSpaces: (text) => text.replace(/\t/g, '    '),
+            replaceMultipleSpaces: (text) => text.replace(/[ \t]{2,}/g, ' '),
+            normalizePunctuation: (text) => {
+                return text
+                    .replace(/\s+([.,!?;:])/g, '$1')
+                    .replace(/([.,!?;:])\s+/g, '$1 ')
+                    .replace(/\s+$/gm, '');
+            },
+            removeRepeatedPunctuation: (text) => {
+                return text.replace(/([.!?;:])\1+/g, '$1');
+            },
+            
+            // URL Tools
+            removeUtmParams: (text) => {
+                return text.replace(/([?&])utm_[^&=]+=[^&]*/g, '').replace(/\?&/g, '?').replace(/[?&]$/g, '');
+            },
+            decodeUrls: (text) => {
+                try {
+                    return text.replace(/https?:\/\/[^\s]+/g, url => decodeURIComponent(url));
+                } catch {
+                    return text;
+                }
+            },
+            encodeUrls: (text) => {
+                return text.replace(/https?:\/\/[^\s]+/g, url => encodeURI(url));
+            }
+        };
+
+        // Event Listeners - Tools
+        document.getElementById('removeExtraSpaces').addEventListener('click', () => {
+            applyTool(tools.removeExtraSpaces);
+        });
+        document.getElementById('removeTrailingSpaces').addEventListener('click', () => {
+            applyTool(tools.removeTrailingSpaces);
+        });
+        document.getElementById('removeLeadingSpaces').addEventListener('click', () => {
+            applyTool(tools.removeLeadingSpaces);
+        });
+        document.getElementById('removeBlankLines').addEventListener('click', () => {
+            applyTool(tools.removeBlankLines);
+        });
+        document.getElementById('trimLines').addEventListener('click', () => {
+            applyTool(tools.trimLines);
+        });
+        document.getElementById('fixPdfLineBreaks').addEventListener('click', () => {
+            applyTool(tools.fixPdfLineBreaks);
+        });
+        document.getElementById('joinWrappedSentences').addEventListener('click', () => {
+            applyTool(tools.joinWrappedSentences);
+        });
+        document.getElementById('convertSmartQuotes').addEventListener('click', () => {
+            applyTool(tools.convertSmartQuotes);
+        });
+        document.getElementById('convertSmartApostrophes').addEventListener('click', () => {
+            applyTool(tools.convertSmartApostrophes);
+        });
+        document.getElementById('convertToDotBullets').addEventListener('click', () => {
+            applyTool(tools.convertToDotBullets);
+        });
+        document.getElementById('convertToAsteriskBullets').addEventListener('click', () => {
+            applyTool(tools.convertToAsteriskBullets);
+        });
+        document.getElementById('convertToDashBullets').addEventListener('click', () => {
+            applyTool(tools.convertToDashBullets);
+        });
+        document.getElementById('toUppercase').addEventListener('click', () => {
+            applyTool(tools.toUppercase);
+        });
+        document.getElementById('toLowercase').addEventListener('click', () => {
+            applyTool(tools.toLowercase);
+        });
+        document.getElementById('toSentenceCase').addEventListener('click', () => {
+            applyTool(tools.toSentenceCase);
+        });
+        document.getElementById('toTitleCase').addEventListener('click', () => {
+            applyTool(tools.toTitleCase);
+        });
+        document.getElementById('toggleCase').addEventListener('click', () => {
+            applyTool(tools.toggleCase);
+        });
+        document.getElementById('sortLinesAZ').addEventListener('click', () => {
+            applyTool(tools.sortLinesAZ);
+        });
+        document.getElementById('sortLinesZA').addEventListener('click', () => {
+            applyTool(tools.sortLinesZA);
+        });
+        document.getElementById('reverseLines').addEventListener('click', () => {
+            applyTool(tools.reverseLines);
+        });
+        document.getElementById('removeDuplicateLines').addEventListener('click', () => {
+            applyTool(tools.removeDuplicateLines);
+        });
+        document.getElementById('removeEmptyLines').addEventListener('click', () => {
+            applyTool(tools.removeEmptyLines);
+        });
+        document.getElementById('numberLines').addEventListener('click', () => {
+            applyTool(tools.numberLines);
+        });
+        document.getElementById('removeMultipleTabs').addEventListener('click', () => {
+            applyTool(tools.removeMultipleTabs);
+        });
+        document.getElementById('replaceTabsWithSpaces').addEventListener('click', () => {
+            applyTool(tools.replaceTabsWithSpaces);
+        });
+        document.getElementById('replaceMultipleSpaces').addEventListener('click', () => {
+            applyTool(tools.replaceMultipleSpaces);
+        });
+        document.getElementById('normalizePunctuation').addEventListener('click', () => {
+            applyTool(tools.normalizePunctuation);
+        });
+        document.getElementById('removeRepeatedPunctuation').addEventListener('click', () => {
+            applyTool(tools.removeRepeatedPunctuation);
+        });
+        document.getElementById('removeUtmParams').addEventListener('click', () => {
+            applyTool(tools.removeUtmParams);
+        });
+        document.getElementById('decodeUrls').addEventListener('click', () => {
+            applyTool(tools.decodeUrls);
+        });
+        document.getElementById('encodeUrls').addEventListener('click', () => {
+            applyTool(tools.encodeUrls);
+        });
+
+        // Event Listeners - Utility Buttons
+        copyBtn.addEventListener('click', () => {
+            if (!outputText.value) {
+                showToast('Output is empty', 'warning');
+                return;
+            }
+            navigator.clipboard.writeText(outputText.value).then(() => {
+                showToast('Copied to clipboard', 'success');
+            }).catch(() => {
+                showToast('Failed to copy', 'error');
+            });
+        });
+
+        downloadBtn.addEventListener('click', () => {
+            if (!outputText.value) {
+                showToast('Output is empty', 'warning');
+                return;
+            }
+            const blob = new Blob([outputText.value], { type: 'text/plain' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `clipboard-${new Date().getTime()}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            showToast('Downloaded as TXT', 'success');
+        });
+
+        swapBtn.addEventListener('click', () => {
+            [inputText.value, outputText.value] = [outputText.value, inputText.value];
+            saveHistory();
+            updateStats();
+            showToast('Swapped input and output', 'success');
+        });
+
+        clearInputBtn.addEventListener('click', () => {
+            inputText.value = '';
+            updateStats();
+            showToast('Input cleared', 'success');
+        });
+
+        clearOutputBtn.addEventListener('click', () => {
+            outputText.value = '';
+            state.history = [];
+            state.historyIndex = -1;
+            updateHistoryButtons();
+            showToast('Output cleared', 'success');
+        });
+
+        undoBtn.addEventListener('click', () => {
+            if (state.historyIndex > 0) {
+                state.historyIndex--;
+                outputText.value = state.history[state.historyIndex];
+                updateHistoryButtons();
+                showToast('Undone', 'info');
+            }
+        });
+
+        redoBtn.addEventListener('click', () => {
+            if (state.historyIndex < state.history.length - 1) {
+                state.historyIndex++;
+                outputText.value = state.history[state.historyIndex];
+                updateHistoryButtons();
+                showToast('Redone', 'info');
+            }
+        });
+
+        // Find & Replace
+        document.getElementById('findReplaceBtn').addEventListener('click', () => {
+            findReplaceModal.classList.add('active');
+            document.getElementById('findInput').focus();
+        });
+
+        document.getElementById('replaceOneBtn').addEventListener('click', () => {
+            const findValue = document.getElementById('findInput').value;
+            const replaceValue = document.getElementById('replaceInput').value;
+            const caseSensitive = document.getElementById('caseSensitiveCheckbox').checked;
+
+            if (!findValue) {
+                showToast('Find field is empty', 'warning');
+                return;
+            }
+
+            try {
+                const flags = caseSensitive ? 'g' : 'gi';
+                const regex = new RegExp(findValue, flags);
+                outputText.value = outputText.value.replace(regex, replaceValue);
+                saveHistory();
+                updateStats();
+                showToast('Replaced once', 'success');
+            } catch {
+                showToast('Invalid search pattern', 'error');
+            }
+        });
+
+        document.getElementById('replaceAllBtn').addEventListener('click', () => {
+            const findValue = document.getElementById('findInput').value;
+            const replaceValue = document.getElementById('replaceInput').value;
+            const caseSensitive = document.getElementById('caseSensitiveCheckbox').checked;
+
+            if (!findValue) {
+                showToast('Find field is empty', 'warning');
+                return;
+            }
+
+            try {
+                const flags = caseSensitive ? 'g' : 'gi';
+                const regex = new RegExp(findValue, flags);
+                const newText = outputText.value.replace(regex, replaceValue);
+                const count = (outputText.value.match(regex) || []).length;
+                outputText.value = newText;
+                saveHistory();
+                updateStats();
+                showToast(`Replaced ${count} occurrences`, 'success');
+            } catch {
+                showToast('Invalid search pattern', 'error');
+            }
+        });
+
+        document.getElementById('findCancelBtn').addEventListener('click', () => {
+            findReplaceModal.classList.remove('active');
+        });
+
+        findReplaceModal.addEventListener('click', (e) => {
+            if (e.target === findReplaceModal) {
+                findReplaceModal.classList.remove('active');
+            }
+        });
+
+        // Dark Mode Toggle
+        darkModeToggle.addEventListener('click', () => {
+            const isDark = document.documentElement.classList.toggle('dark-mode');
+            darkModeToggle.textContent = isDark ? '☀️' : '🌙';
+            localStorage.setItem('smartClipboardDarkMode', isDark);
+        });
+
+        // Keyboard Shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey || e.metaKey) {
+                if (e.key === 'z' && !e.shiftKey) {
+                    e.preventDefault();
+                    undoBtn.click();
+                } else if ((e.key === 'y') || (e.key === 'z' && e.shiftKey)) {
+                    e.preventDefault();
+                    redoBtn.click();
+                } else if (e.key === 'c' && document.activeElement === outputText) {
+                    e.preventDefault();
+                    copyBtn.click();
+                } else if (e.key === 'l') {
+                    e.preventDefault();
+                    clearInputBtn.click();
+                }
+            } else if (e.key === 'Escape') {
+                findReplaceModal.classList.remove('active');
+            } else if (e.ctrlKey && e.key === 'h') {
+                e.preventDefault();
+                document.getElementById('findReplaceBtn').click();
+            }
+        });
+
+        // Initialize
+        inputText.addEventListener('input', updateStats);
+        outputText.addEventListener('input', updateStats);
+
+        // Load dark mode preference
+        if (localStorage.getItem('smartClipboardDarkMode') === 'true') {
+            document.documentElement.classList.add('dark-mode');
+            darkModeToggle.textContent = '☀️';
+        }
+
+        updateStats();
+    </script>
+</body>
+</html>
